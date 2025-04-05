@@ -39,8 +39,15 @@ pipeline {
             steps {
                 script {
                     try {
-                        sh 'mvn --version'
-                        sh 'mvn clean package -DskipTests'
+                        sh '''
+                            export JAVA_HOME=${tool 'jdk17'}
+                            export PATH=${JAVA_HOME}/bin:${PATH}
+                            echo "Using Java version:"
+                            java -version
+                            echo "Using Maven version:"
+                            mvn -v
+                            mvn clean package -DskipTests
+                        '''
                         archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                     } catch (e) {
                         echo "Build failed: ${e}"
