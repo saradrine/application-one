@@ -13,6 +13,7 @@ pipeline {
         VERSION = "${env.BUILD_NUMBER}"
         BUILD_DATE = new Date().format('yyyyMMdd-HHmmss')
         JAVA_HOME = tool 'jdk17'
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
 
     stages {
@@ -21,6 +22,16 @@ pipeline {
                 checkout scm
                 sh 'git --version'
                 echo "Code checked out from ${env.GIT_URL}"
+            }
+        }
+
+        stage('Verify Java Version') {
+            steps {
+                sh '''
+                    echo "JAVA_HOME: ${JAVA_HOME}"
+                    java -version
+                    mvn -v
+                '''
             }
         }
 
