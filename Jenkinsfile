@@ -6,6 +6,7 @@ pipeline {
         DOCKER_HUB = credentials('docker-hub-credentials')
         IMAGE_NAME = 'sara12308/application-one'
         VERSION = "${env.BUILD_NUMBER}"
+        BUILD_DATE = new Date().format('yyyyMMdd-HHmmss')
 
         // Configuration Maven
         MAVEN_OPTS = "-Dmaven.repo.local=${env.WORKSPACE}/.m2/repository"
@@ -63,7 +64,7 @@ pipeline {
                         sh 'docker --version'
 
                         // Construit l'image
-                        dockerImage = docker.build("${IMAGE_NAME}:${VERSION}")
+                        dockerImage = docker.build("${IMAGE_NAME}:${VERSION}-${BUILD_DATE}")
 
                         echo "Image ${IMAGE_NAME}:${VERSION} built successfully"
                     } catch (e) {
