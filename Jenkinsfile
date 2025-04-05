@@ -13,7 +13,7 @@ pipeline {
         VERSION = "${env.BUILD_NUMBER}"
         BUILD_DATE = new Date().format('yyyyMMdd-HHmmss')
         JAVA_HOME = '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home'
-        PATH = "/usr/local/bin:${env.PATH}"
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
 
     stages {
@@ -77,7 +77,7 @@ pipeline {
                 script {
                     try {
                         // Vérifie que Docker fonctionne
-                        sh 'docker --version'
+                        sh '/usr/local/bin/docker --version'
                         docker.build("${IMAGE_NAME}:${VERSION}-${BUILD_DATE}")
                     } catch (e) {
                         echo "Docker build failed: ${e}"
