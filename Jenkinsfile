@@ -12,8 +12,6 @@ pipeline {
         IMAGE_NAME = 'sara12308/application-one'
         VERSION = "${env.BUILD_NUMBER}"
         BUILD_DATE = new Date().format('yyyyMMdd-HHmmss')
-        JAVA_HOME = '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home'
-        PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
 
     stages {
@@ -25,24 +23,12 @@ pipeline {
             }
         }
 
-        stage('Verify Java Version') {
-            steps {
-                sh '''
-                    echo "JAVA_HOME: ${JAVA_HOME}"
-                    java -version
-                    mvn -v
-                '''
-            }
-        }
-
         stage('Build with Maven') {
             steps {
                 script {
                     try {
-                        sh '''
-                            mvn -v
-                            mvn clean package -DskipTests
-                        '''
+                        sh 'mvn --version'
+                        sh 'mvn clean package -DskipTests'
                         archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                     } catch (e) {
                         echo "Build failed: ${e}"
@@ -77,8 +63,8 @@ pipeline {
                 script {
                     try {
                         // Vérifie que Docker fonctionne
-                        sh '/usr/local/bin/docker --version'
-                        sh "/usr/local/bin/docker build -t ${IMAGE_NAME}:${VERSION}-${BUILD_DATE} ."
+                        sh 'docker --version'
+                        docker.build("${IMAGE_NAME}:${VERSION}-${BUILD_DATE}")
                     } catch (e) {
                         echo "Docker build failed: ${e}"
                         currentBuild.result = 'FAILURE'
@@ -92,10 +78,10 @@ pipeline {
             steps {
                 script {
                     try {
-                        sh "/usr/local/bin/docker login -u ${DOCKER_HUB_USR} -p ${DOCKER_HUB_PSW} https://registry.hub.docker.com"
-                        sh "/usr/local/bin/docker push ${IMAGE_NAME}:${VERSION}-${BUILD_DATE}"
-                        sh "/usr/local/bin/docker tag ${IMAGE_NAME}:${VERSION}-${BUILD_DATE} ${IMAGE_NAME}:latest"
-                        sh "/usr/local/bin/docker push ${IMAGE_NAME}:latest"
+                        docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                            docker.image("${IMAGE_NAME}:${VERSION}").push()
+                            docker.image("${IMAGE_NAME}:${VERSION}").push('latest')
+                        }
                         echo "Image pushed to Docker Hub successfully"
                     } catch (e) {
                         echo "Failed to push image: ${e}"
