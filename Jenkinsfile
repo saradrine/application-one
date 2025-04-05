@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Cloner le dépôt') {
             steps {
-                git branch: 'main', url: 'https://github.com/tonuser/tonprojet.git'
+                git branch: 'jenkins-config-v2', url: 'https://github.com/saradrine/application-one/tree/jenkinsConfig'
             }
         }
 
