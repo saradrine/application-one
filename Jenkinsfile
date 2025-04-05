@@ -12,6 +12,7 @@ pipeline {
         IMAGE_NAME = 'sara12308/application-one'
         VERSION = "${env.BUILD_NUMBER}"
         BUILD_DATE = new Date().format('yyyyMMdd-HHmmss')
+        JAVA_HOME = tool 'jdk17'
     }
 
     stages {
