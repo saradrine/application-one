@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    tools {
+            maven 'M3'
+            jdk 'jdk17'
+    }
+
     environment {
         DOCKER_IMAGE = 'rymjbeli/application-one'
         VERSION = "${new Date().format('yyyyMMdd-HHmm')}"
@@ -14,11 +19,29 @@ pipeline {
             }
         }
 
-        stage('Build Maven') {
+        stage('Build with Maven') {
             steps {
-                sh 'mvn clean install'
+                script {
+                    try {
+                        sh 'mvn --version'
+                        sh 'mvn clean package -DskipTests'
+                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    } catch (e) {
+                        echo "Build failed: ${e}"
+                        currentBuild.result = 'FAILURE'
+                        error('Maven build failed')
+                    }
+                }
+            }
+
+            post {
+                success {
+                    echo 'Maven build completed successfully!'
+                    stash includes: 'target/*.jar', name: 'app-jar'
+                }
             }
         }
+
 
         stage('Tests (optionnel)') {
             steps {
