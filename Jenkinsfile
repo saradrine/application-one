@@ -1,15 +1,17 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'M3'
+        jdk 'jdk17'
+    }
+
     environment {
         // Configuration Docker Hub
         DOCKER_HUB = credentials('docker-hub-credentials')
         IMAGE_NAME = 'sara12308/application-one'
         VERSION = "${env.BUILD_NUMBER}"
         BUILD_DATE = new Date().format('yyyyMMdd-HHmmss')
-
-        // Configuration Maven
-        MAVEN_OPTS = "-Dmaven.repo.local=${env.WORKSPACE}/.m2/repository"
     }
 
     stages {
@@ -62,11 +64,7 @@ pipeline {
                     try {
                         // Vérifie que Docker fonctionne
                         sh 'docker --version'
-
-                        // Construit l'image
-                        dockerImage = docker.build("${IMAGE_NAME}:${VERSION}-${BUILD_DATE}")
-
-                        echo "Image ${IMAGE_NAME}:${VERSION} built successfully"
+                        docker.build("${IMAGE_NAME}:${VERSION}-${BUILD_DATE}")
                     } catch (e) {
                         echo "Docker build failed: ${e}"
                         currentBuild.result = 'FAILURE'
@@ -81,8 +79,8 @@ pipeline {
                 script {
                     try {
                         docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
-                            dockerImage.push()
-                            dockerImage.push('latest')
+                            docker.image("${IMAGE_NAME}:${VERSION}").push()
+                            docker.image("${IMAGE_NAME}:${VERSION}").push('latest')
                         }
                         echo "Image pushed to Docker Hub successfully"
                     } catch (e) {
@@ -98,15 +96,12 @@ pipeline {
     post {
         always {
             echo 'Pipeline completed - cleaning up'
-            cleanWs()
         }
         success {
             echo 'Pipeline succeeded!'
-            slackSend(color: 'good', message: "Pipeline SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}")
         }
         failure {
             echo 'Pipeline failed!'
-            slackSend(color: 'danger', message: "Pipeline FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}")
         }
     }
 }
