@@ -1,17 +1,18 @@
 pipeline {
-    agent any  // Using 'any' instead of docker agent to avoid conflicts
+    agent any
     
     tools {
         maven 'M3'
         jdk 'jdk17'
         'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'docker'
-        nodejs 'node'
+        nodejs 'node'  // Make sure this is configured in Global Tools
     }
 
     environment {
         DOCKER_IMAGE = 'rymjbeli/application-one'
         VERSION = "${new Date().format('yyyyMMdd-HHmm')}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
+        PROJECT_DIR = 'app'  // Add this if your Node.js code is in a subdirectory
     }
 
     stages {
@@ -21,28 +22,51 @@ pipeline {
             }
         }
 
+        stage('Verify Project Structure') {
+            steps {
+                script {
+                    // Check if we're in the right directory
+                    sh '''
+                        pwd
+                        ls -la
+                        if [ -d "${PROJECT_DIR}" ]; then
+                            cd ${PROJECT_DIR}
+                        fi
+                        ls -la
+                    '''
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                sh 'node --version'
-                sh 'npm install'
+                script {
+                    dir(env.PROJECT_DIR ?: '.') {  // Change to project directory if specified
+                        sh 'node --version'
+                        sh 'npm --version'
+                        sh 'npm install'
+                    }
+                }
             }
         }
 
         stage('Build') {
             steps {
-                sh 'npm run build'
+                script {
+                    dir(env.PROJECT_DIR ?: '.') {
+                        sh 'npm run build'
+                    }
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Ensure Docker is available
-                    sh 'docker --version || echo "Docker not found rim"'
-                    
-                    // Build with Docker
                     docker.withTool('docker') {
-                        docker.build("${DOCKER_IMAGE}:${VERSION}")
+                        dir(env.PROJECT_DIR ?: '.') {
+                            sh "docker build -t ${DOCKER_IMAGE}:${VERSION} ."
+                        }
                     }
                 }
             }
@@ -53,9 +77,11 @@ pipeline {
                 script {
                     docker.withTool('docker') {
                         docker.withRegistry('https://registry.hub.docker.com', DOCKER_CREDENTIALS_ID) {
-                            def builtImage = docker.image("${DOCKER_IMAGE}:${VERSION}")
-                            builtImage.push()
-                            builtImage.push('latest')  // Also push as latest
+                            sh """
+                                docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest
+                                docker push ${DOCKER_IMAGE}:${VERSION}
+                                docker push ${DOCKER_IMAGE}:latest
+                            """
                         }
                     }
                 }
@@ -66,7 +92,7 @@ pipeline {
     post {
         success {
             echo 'Déploiement terminé avec succès.'
-            archiveArtifacts artifacts: 'build/**/*', fingerprint: true
+            archiveArtifacts artifacts: '**/build/**/*', fingerprint: true
         }
         failure {
             echo 'Échec du pipeline.'
