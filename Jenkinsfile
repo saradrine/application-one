@@ -1,6 +1,11 @@
 pipeline {
-    agent any
-
+    agent {
+        docker { 
+            image 'node:22.14.0-alpine3.21' 
+            args '-v /home/jenkins/.m2:/root/.m2'  // Optional: Cache Maven dependencies
+        }
+    }
+   
     tools {
             maven 'M3'
             jdk 'jdk17'
@@ -19,23 +24,31 @@ pipeline {
             }
         }
 
-        stage('Build with Maven') {
-            steps {
-                 script {
-                    // This will automatically pull the image if needed
-                    docker.image('node:22.14.0-alpine3.21').inside {
-                        sh 'node --version'
-                        sh 'npm install'
-                        sh 'npm run build'
-                    }
-                }
-            }
+        // stage('Build with Maven') {
+        //     steps {
+        //          script {
+        //             // This will automatically pull the image if needed
+        //             docker.image('node:22.14.0-alpine3.21').inside {
+        //                 sh 'node --version'
+        //                 sh 'npm install'
+        //                 sh 'npm run build'
+        //             }
+        //         }
+        //     }
 
-            post {
-                success {
-                    echo 'Maven build completed successfully!'
-                    stash includes: 'target/*.jar', name: 'app-jar'
-                }
+        //     post {
+        //         success {
+        //             echo 'Maven build completed successfully!'
+        //             stash includes: 'target/*.jar', name: 'app-jar'
+        //         }
+        //     }
+        // }
+
+        stage('Build') {
+            steps {
+                sh 'node --version'
+                sh 'npm install'
+                sh 'npm run build'
             }
         }
 
