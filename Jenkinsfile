@@ -5,7 +5,6 @@ pipeline {
         maven 'M3'
         jdk 'jdk17'
         docker docker
-        nodejs 'nodejs'  // Configure Node.js in Global Tools
     }
 
     environment {
