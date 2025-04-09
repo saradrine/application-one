@@ -35,7 +35,7 @@ pipeline {
             steps {
                 script {
                     // Ensure Docker is available
-                    sh 'docker --version || echo "Docker not found"'
+                    sh 'docker --version || echo "Docker not found rim"'
                     
                     // Build with Docker
                     docker.withTool('docker') {
