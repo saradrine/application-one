@@ -1,18 +1,16 @@
 pipeline {
     agent any
-    
+
     tools {
-        maven 'M3'
-        jdk 'jdk17'
-        'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'docker'
-        nodejs 'node'  // Make sure this is configured in Global Tools
+            maven 'M3'
+            jdk 'jdk17'
+          'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'docker'
     }
 
     environment {
         DOCKER_IMAGE = 'rymjbeli/application-one'
         VERSION = "${new Date().format('yyyyMMdd-HHmm')}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
-        PROJECT_DIR = 'app'  // Add this if your Node.js code is in a subdirectory
     }
 
     stages {
@@ -22,51 +20,42 @@ pipeline {
             }
         }
 
-        stage('Verify Project Structure') {
+        stage('Build with Maven') {
             steps {
                 script {
-                    // Check if we're in the right directory
-                    sh '''
-                        pwd
-                        ls -la
-                        if [ -d "${PROJECT_DIR}" ]; then
-                            cd ${PROJECT_DIR}
-                        fi
-                        ls -la
-                    '''
+                    try {
+                        sh 'mvn --version'
+                        sh 'mvn clean package -DskipTests'
+                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    } catch (e) {
+                        echo "Build failed: ${e}"
+                        currentBuild.result = 'FAILURE'
+                        error('Maven build failed')
+                    }
+                }
+            }
+
+            post {
+                success {
+                    echo 'Maven build completed successfully!'
+                    stash includes: 'target/*.jar', name: 'app-jar'
                 }
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                script {
-                    dir(env.PROJECT_DIR ?: '.') {  // Change to project directory if specified
-                        sh 'node --version'
-                        sh 'npm --version'
-                        sh 'npm install'
-                    }
-                }
-            }
-        }
 
-        stage('Build') {
+        stage('Tests (optionnel)') {
             steps {
-                script {
-                    dir(env.PROJECT_DIR ?: '.') {
-                        sh 'npm run build'
-                    }
-                }
+                sh 'mvn test'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
+                    // Use docker.withTool to specify the Docker tool
                     docker.withTool('docker') {
-                        dir(env.PROJECT_DIR ?: '.') {
-                            sh "docker build -t ${DOCKER_IMAGE}:${VERSION} ."
-                        }
+                        // sh "docker build -t $DOCKER_IMAGE:$VERSION ."
                     }
                 }
             }
@@ -74,13 +63,15 @@ pipeline {
 
         stage('Push vers Docker Hub') {
             steps {
-                script {
-                    docker.withTool('docker') {
-                        docker.withRegistry('https://registry.hub.docker.com', DOCKER_CREDENTIALS_ID) {
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        // Use docker.withTool to ensure Docker commands use the correct tool
+                        docker.withTool('docker') {
                             sh """
-                                docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest
-                                docker push ${DOCKER_IMAGE}:${VERSION}
-                                docker push ${DOCKER_IMAGE}:latest
+                                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                                docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
+                                docker push $DOCKER_IMAGE:$VERSION
+                                docker push $DOCKER_IMAGE:latest
                             """
                         }
                     }
@@ -92,7 +83,6 @@ pipeline {
     post {
         success {
             echo 'Déploiement terminé avec succès.'
-            archiveArtifacts artifacts: '**/build/**/*', fingerprint: true
         }
         failure {
             echo 'Échec du pipeline.'
