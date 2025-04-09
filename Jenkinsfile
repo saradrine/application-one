@@ -23,15 +23,12 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                script {
-                    try {
-                        sh 'mvn --version'
-                        sh 'mvn clean package -DskipTests'
-                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-                    } catch (e) {
-                        echo "Build failed: ${e}"
-                        currentBuild.result = 'FAILURE'
-                        error('Maven build failed')
+                 script {
+                    // This will automatically pull the image if needed
+                    docker.image('node:22.14.0-alpine3.21').inside {
+                        sh 'node --version'
+                        sh 'npm install'
+                        sh 'npm run build'
                     }
                 }
             }
