@@ -4,6 +4,7 @@ pipeline {
     tools {
             maven 'M3'
             jdk 'jdk17'
+          'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'docker'
     }
 
     environment {
