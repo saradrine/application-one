@@ -15,8 +15,6 @@ pipeline {
         DOCKER_IMAGE = 'rymjbeli/application-one'
         VERSION = "${new Date().format('yyyyMMdd-HHmm')}"
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
-        dockerImage = ''
-        registery = 'rymjbeli/application-one'
     }
 
     stages {
@@ -62,9 +60,17 @@ pipeline {
         }
 
         stage('Build Docker Image') {
+            // steps {
+            //     sh "docker build -t $DOCKER_IMAGE:$VERSION ."
+            // }
+
             steps {
-                // sh "docker build -t $DOCKER_IMAGE:$VERSION ."
-                dockerImage = docker.build.registery
+                script {
+                    // Correct way to build Docker image
+                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_CREDENTIALS_ID) {
+                        docker.build("${DOCKER_IMAGE}:${VERSION}").push()
+                    }
+                }
             }
         }
 
