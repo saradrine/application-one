@@ -52,19 +52,29 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t $DOCKER_IMAGE:$VERSION ."
+                script {
+                    // Use docker.withTool to specify the Docker tool
+                    docker.withTool('docker') {
+                        sh "docker build -t $DOCKER_IMAGE:$VERSION ."
+                    }
+                }
             }
         }
 
         stage('Push vers Docker Hub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
-                        docker push $DOCKER_IMAGE:$VERSION
-                        docker push $DOCKER_IMAGE:latest
-                    """
+                    script {
+                        // Use docker.withTool to ensure Docker commands use the correct tool
+                        docker.withTool('docker') {
+                            sh """
+                                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                                docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
+                                docker push $DOCKER_IMAGE:$VERSION
+                                docker push $DOCKER_IMAGE:latest
+                            """
+                        }
+                    }
                 }
             }
         }
