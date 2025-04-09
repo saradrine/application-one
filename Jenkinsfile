@@ -55,7 +55,7 @@ pipeline {
                 script {
                     // Use docker.withTool to specify the Docker tool
                     docker.withTool('docker') {
-                        sh "docker build -t $DOCKER_IMAGE:$VERSION ."
+                        // sh "docker build -t $DOCKER_IMAGE:$VERSION ."
                     }
                 }
             }
