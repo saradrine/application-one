@@ -1,10 +1,8 @@
 pipeline {
-    agent any
-
+    agent any  // Using 'any' instead of docker agent to avoid conflicts
+    
     tools {
-            maven 'M3'
-            jdk 'jdk17'
-          'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'docker'
+        nodejs 'nodejs'  // Configure Node.js in Global Tools
     }
 
     environment {
@@ -20,42 +18,28 @@ pipeline {
             }
         }
 
-        stage('Build with Maven') {
+        stage('Install Dependencies') {
             steps {
-                script {
-                    try {
-                        sh 'mvn --version'
-                        sh 'mvn clean package -DskipTests'
-                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-                    } catch (e) {
-                        echo "Build failed: ${e}"
-                        currentBuild.result = 'FAILURE'
-                        error('Maven build failed')
-                    }
-                }
-            }
-
-            post {
-                success {
-                    echo 'Maven build completed successfully!'
-                    stash includes: 'target/*.jar', name: 'app-jar'
-                }
+                sh 'node --version'
+                sh 'npm install'
             }
         }
 
-
-        stage('Tests (optionnel)') {
+        stage('Build') {
             steps {
-                sh 'mvn test'
+                sh 'npm run build'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Use docker.withTool to specify the Docker tool
+                    // Ensure Docker is available
+                    sh 'docker --version || echo "Docker not found"'
+                    
+                    // Build with Docker
                     docker.withTool('docker') {
-                        // sh "docker build -t $DOCKER_IMAGE:$VERSION ."
+                        docker.build("${DOCKER_IMAGE}:${VERSION}")
                     }
                 }
             }
@@ -63,16 +47,12 @@ pipeline {
 
         stage('Push vers Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    script {
-                        // Use docker.withTool to ensure Docker commands use the correct tool
-                        docker.withTool('docker') {
-                            sh """
-                                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                                docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
-                                docker push $DOCKER_IMAGE:$VERSION
-                                docker push $DOCKER_IMAGE:latest
-                            """
+                script {
+                    docker.withTool('docker') {
+                        docker.withRegistry('https://registry.hub.docker.com', DOCKER_CREDENTIALS_ID) {
+                            def builtImage = docker.image("${DOCKER_IMAGE}:${VERSION}")
+                            builtImage.push()
+                            builtImage.push('latest')  // Also push as latest
                         }
                     }
                 }
@@ -83,6 +63,7 @@ pipeline {
     post {
         success {
             echo 'Déploiement terminé avec succès.'
+            archiveArtifacts artifacts: 'build/**/*', fingerprint: true
         }
         failure {
             echo 'Échec du pipeline.'
