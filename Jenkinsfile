@@ -64,7 +64,7 @@ pipeline {
                     try {
                         // Vérifie que Docker fonctionne
                         sh 'docker --version'
-                        docker.build("${IMAGE_NAME}:${VERSION}-${BUILD_DATE}")
+                        sh "docker build -t ${IMAGE_NAME}:${VERSION}-${BUILD_DATE} ."
                     } catch (e) {
                         echo "Docker build failed: ${e}"
                         currentBuild.result = 'FAILURE'
@@ -76,18 +76,10 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                script {
-                    try {
-                        docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
-                            docker.image("${IMAGE_NAME}:${VERSION}").push()
-                            docker.image("${IMAGE_NAME}:${VERSION}").push('latest')
-                        }
-                        echo "Image pushed to Docker Hub successfully"
-                    } catch (e) {
-                        echo "Failed to push image: ${e}"
-                        currentBuild.result = 'FAILURE'
-                        error('Failed to push image')
-                    }
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                        sh "docker tag ${IMAGE_NAME}:${VERSION}-${BUILD_DATE} ${IMAGE_NAME}:latest"
+                        sh "docker push ${IMAGE_NAME}:${VERSION}-${BUILD_DATE}"
                 }
             }
         }
