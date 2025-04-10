@@ -64,7 +64,7 @@ pipeline {
                     try {
                         // Vérifie que Docker fonctionne
                         sh 'docker --version'
-                        docker.build("${IMAGE_NAME}:${VERSION}-${BUILD_DATE}")
+                        sh "docker build -t ${IMAGE_NAME}:${VERSION}-${BUILD_DATE} ."
                     } catch (e) {
                         echo "Docker build failed: ${e}"
                         currentBuild.result = 'FAILURE'
