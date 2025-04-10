@@ -76,18 +76,13 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                script {
-                    try {
-                        docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
-                            docker.image("${IMAGE_NAME}:${VERSION}").push()
-                            docker.image("${IMAGE_NAME}:${VERSION}").push('latest')
-                        }
-                        echo "Image pushed to Docker Hub successfully"
-                    } catch (e) {
-                        echo "Failed to push image: ${e}"
-                        currentBuild.result = 'FAILURE'
-                        error('Failed to push image')
-                    }
+                withCredentials([usernamePassword(credentialsId: "docker-hub-credentials", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker tag $DOCKER_IMAGE:$VERSION $DOCKER_IMAGE:latest
+                        docker push $DOCKER_IMAGE:$VERSION
+                        docker push $DOCKER_IMAGE:latest
+                    """
                 }
             }
         }
